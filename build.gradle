@@ -23,6 +23,8 @@ ext {
     imageZipPath = "$buildDir/image-zip/${launcherName}-image.zip"
 }
 
+defaultTasks 'clean', 'jlinkZip'
+
 dependencies {
     compile 'org.javassist:javassist:3.23.1-GA'
     compile 'javax.xml.bind:jaxb-api:2.3.0'
@@ -81,7 +83,7 @@ tasks.jar.enabled = true
 
 prepareMergedJarsDir.doLast {
     // commons-lang3 contains a directory named 'templates', which conflicts with
-    // the 'templates' directory of spring-petclinic (java sees these directories are split packages).
+    // the 'templates' directory of spring-petclinic (java sees these directories as split packages).
     // The 'templates' directory of commons-lang3 contains only a release-notes template, so it can be safely deleted.
     def mjDir = mergedJarsDir.get().asFile
     file("$mjDir/templates").deleteDir()
@@ -194,8 +196,8 @@ tasks.jlink.doLast {
         from 'resources/css'
         into "$imageDirPath/bin/config/static/resources/css"
     }
-    // Spring also needs to read the .class files, so they should be also accessible via classpath.
-    // Note: These .class files are only used as resources, they will not loaded by a classloader.
+    // Spring also needs to read the .class files, therefore they should be accessible via classpath.
+    // Note: These .class files are only used as resources, they will not be loaded by a classloader.
     copy {
         from "$buildDir/classes/java/main/org/springframework/samples/petclinic"
         into "$imageDirPath/bin/config/org/springframework/samples/petclinic/for-spring-classpath-scanner"
