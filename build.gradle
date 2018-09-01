@@ -1,0 +1,225 @@
+import org.ajoberstar.grgit.*
+plugins {
+    id "org.beryx.jlink" version "1.4.2"
+    id "org.springframework.boot" version "2.0.4.RELEASE"
+    id "org.ajoberstar.grgit" version "3.0.0-beta.1"
+}
+
+sourceCompatibility = 11
+targetCompatibility = 11
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+repositories {
+    maven { url "http://repo.maven.apache.org/maven2" }
+}
+
+ext {
+    cloneDir = "$buildDir/clone"
+    springBootVersion = '2.0.4.RELEASE'
+    launcherName = 'spring-petclinic'
+    imageDirPath = "$buildDir/${launcherName}-image"
+    imageZipPath = "$buildDir/image-zip/${launcherName}-image.zip"
+}
+
+dependencies {
+    compile 'org.javassist:javassist:3.23.1-GA'
+    compile 'javax.xml.bind:jaxb-api:2.3.0'
+    compile 'com.sun.activation:javax.activation:1.2.0'
+    compile 'org.jboss.spec.javax.transaction:jboss-transaction-api_1.2_spec:1.1.1.Final'
+
+    compile 'org.hibernate.javax.persistence:hibernate-jpa-2.1-api:1.0.2.Final'
+
+    compile("org.springframework.boot:spring-boot-starter-actuator:$springBootVersion")
+    compile("org.springframework.boot:spring-boot-starter-cache:$springBootVersion")
+    compile("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion") {
+      exclude module: 'javax.transaction-api'
+    }
+    compile("org.springframework.boot:spring-boot-starter-web:$springBootVersion") {
+        exclude module: 'tomcat-annotations-api'
+    }
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-thymeleaf', version:springBootVersion
+
+    compile group: 'javax.cache', name: 'cache-api', version:'1.1.0'
+    compile group: 'org.ehcache', name: 'ehcache', version:'3.5.2'
+    compile group: 'org.webjars', name: 'webjars-locator-core', version:'0.35'
+    compile group: 'org.webjars', name: 'jquery', version:'2.2.4'
+    compile group: 'org.webjars', name: 'jquery-ui', version:'1.11.4'
+    compile group: 'org.webjars', name: 'bootstrap', version:'3.3.6'
+    compile group: 'org.hsqldb', name: 'hsqldb', version:'2.4.1'
+}
+
+mainClassName = 'org.springframework.samples.petclinic.PetClinicApplication'
+
+// This task clones the spring-petclinic project into cloneDir and adds module-info.java to it.
+// The commitId is configured in gradle.properties.
+task clonePetclinic {
+    outputs.dir(cloneDir)
+    inputs.property("commitId", commitId)
+    doLast {
+        project.logger.info("Deleting ${cloneDir}...")
+        delete(cloneDir)
+        project.logger.info("Cloning spring-petclinic...")
+        def grgit = Grgit.clone(dir: cloneDir, uri: "https://github.com/spring-projects/spring-petclinic.git")
+        project.logger.debug("grgit: $grgit")
+        project.logger.info("Resolving commit $commitId")
+        def commitObj = grgit.resolve.toCommit(commitId)
+        project.logger.debug("commitObj: $commitObj")
+        grgit.reset(commit: commitObj, mode: 'soft')
+        copy {
+            from 'resources/module-info.java'
+            into "$cloneDir/src/main/java"
+        }
+    }
+}
+
+sourceSets.main.java.srcDirs = ["$cloneDir/src/main/java"]
+
+compileJava.dependsOn 'clonePetclinic'
+tasks.jar.enabled = true
+
+prepareMergedJarsDir.doLast {
+    // commons-lang3 contains a directory named 'templates', which conflicts with
+    // the 'templates' directory of spring-petclinic (java sees these directories are split packages).
+    // The 'templates' directory of commons-lang3 contains only a release-notes template, so it can be safely deleted.
+    def mjDir = mergedJarsDir.get().asFile
+    file("$mjDir/templates").deleteDir()
+
+    // insert META-INF/spring.factories into the merged jar
+    ant.zip(update: "true", destfile: jar.archivePath, keepcompression: true) {
+        fileset(dir: 'resources', includes: 'META-INF/**')
+    }
+}
+
+compileJava {
+    options.compilerArgs = ['--module-path', classpath.asPath]
+    classpath = files()
+}
+
+jlink {
+    launcherName = project.launcherName
+    imageDir = file(imageDirPath)
+    imageZip = file(imageZipPath)
+    forceMerge 'jaxb-api'
+    mergedModule {
+        requires 'java.desktop'
+        requires 'java.instrument'
+        requires 'java.management'
+        requires 'java.naming'
+        requires 'java.security.jgss'
+        requires 'java.sql'
+        requires 'java.xml'
+        requires 'jdk.unsupported'
+
+        uses 'ch.qos.logback.classic.spi.Configurator'
+        uses 'org.apache.juli.logging.Log'
+        uses 'org.hibernate.integrator.spi.Integrator'
+        uses 'org.hibernate.boot.registry.selector.StrategyRegistrationProvider'
+        uses 'org.hibernate.service.spi.ServiceContributor'
+        uses 'org.hibernate.boot.spi.MetadataSourcesContributor'
+        uses 'org.hibernate.boot.spi.MetadataBuilderInitializer'
+        uses 'org.hibernate.boot.spi.MetadataBuilderFactory'
+        uses 'org.hibernate.boot.model.TypeContributor'
+        uses 'org.hibernate.boot.spi.MetadataContributor'
+        uses 'org.hibernate.boot.spi.AdditionalJaxbMappingProducer'
+        uses 'org.hibernate.boot.spi.SessionFactoryBuilderFactory'
+        uses 'org.hibernate.service.spi.SessionFactoryServiceContributor'
+        uses 'javax.validation.valueextraction.ValueExtractor'
+        uses 'javax.validation.ConstraintValidator'
+
+        uses 'javax.cache.spi.CachingProvider'
+        uses 'com.fasterxml.jackson.core.JsonFactory'
+        uses 'com.fasterxml.jackson.core.ObjectCodec'
+        uses 'com.fasterxml.jackson.databind.Module'
+        uses 'java.sql.Driver'
+        uses 'javax.persistence.spi.PersistenceProvider'
+        uses 'javax.servlet.ServletContainerInitializer'
+        uses 'javax.validation.spi.ValidationProvider'
+        uses 'javax.websocket.ContainerProvider'
+        uses 'javax.websocket.server.ServerEndpointConfig.Configurator'
+        uses 'org.webjars.urlprotocols.UrlProtocolHandler'
+        uses 'org.ehcache.xml.CacheManagerServiceConfigurationParser'
+        uses 'org.ehcache.xml.CacheServiceConfigurationParser'
+        uses 'org.ehcache.core.spi.service.ServiceFactory'
+
+        provides 'com.fasterxml.jackson.core.JsonFactory' with 'com.fasterxml.jackson.core.JsonFactory'
+        provides 'com.fasterxml.jackson.core.ObjectCodec' with 'com.fasterxml.jackson.databind.ObjectMapper'
+        provides 'com.fasterxml.jackson.databind.Module' with 'com.fasterxml.jackson.module.paramnames.ParameterNamesModule'
+        provides 'java.sql.Driver' with 'org.hsqldb.jdbc.JDBCDriver'
+        provides 'javax.cache.spi.CachingProvider' with 'org.ehcache.jsr107.EhcacheCachingProvider'
+
+        provides 'javax.persistence.spi.PersistenceProvider' with 'org.hibernate.jpa.HibernatePersistenceProvider'
+        provides 'javax.servlet.ServletContainerInitializer' with 'org.apache.tomcat.websocket.server.WsSci'
+        provides 'javax.validation.spi.ValidationProvider' with 'org.hibernate.validator.HibernateValidator'
+        provides 'javax.websocket.ContainerProvider' with 'org.apache.tomcat.websocket.WsContainerProvider'
+        provides 'javax.websocket.server.ServerEndpointConfig.Configurator' with 'org.apache.tomcat.websocket.server.DefaultServerEndpointConfigurator'
+
+        provides 'org.webjars.urlprotocols.UrlProtocolHandler' with 'org.webjars.urlprotocols.JarUrlProtocolHandler',
+                                                                    'org.webjars.urlprotocols.FileUrlProtocolHandler'
+
+        provides 'org.ehcache.xml.CacheManagerServiceConfigurationParser' with 'org.ehcache.jsr107.internal.Jsr107ServiceConfigurationParser'
+        provides 'org.ehcache.xml.CacheServiceConfigurationParser' with 'org.ehcache.jsr107.internal.Jsr107CacheConfigurationParser'
+        provides 'org.ehcache.core.spi.service.ServiceFactory' with 'org.ehcache.impl.internal.executor.DefaultExecutionServiceFactory',
+                                                                    'org.ehcache.impl.internal.store.heap.OnHeapStoreProviderFactory',
+                                                                    'org.ehcache.impl.internal.store.offheap.OffHeapStoreProviderFactory',
+                                                                    'org.ehcache.impl.internal.store.disk.OffHeapDiskStoreProviderFactory',
+                                                                    'org.ehcache.impl.internal.store.tiering.TieredStoreProviderFactory',
+                                                                    'org.ehcache.impl.internal.store.tiering.CompoundCachingTierProviderFactory',
+                                                                    'org.ehcache.impl.internal.TimeSourceServiceFactory',
+                                                                    'org.ehcache.impl.internal.spi.serialization.DefaultSerializationProviderFactory',
+                                                                    'org.ehcache.impl.internal.spi.loaderwriter.DefaultCacheLoaderWriterProviderFactory',
+                                                                    'org.ehcache.impl.internal.spi.event.DefaultCacheEventListenerProviderFactory',
+                                                                    'org.ehcache.impl.internal.persistence.DefaultLocalPersistenceServiceFactory',
+                                                                    'org.ehcache.impl.internal.persistence.DefaultDiskResourceServiceFactory',
+                                                                    'org.ehcache.impl.internal.loaderwriter.writebehind.WriteBehindProviderFactory',
+                                                                    'org.ehcache.impl.internal.events.CacheEventNotificationListenerServiceProviderFactory',
+                                                                    'org.ehcache.impl.internal.spi.copy.DefaultCopyProviderFactory',
+                                                                    'org.ehcache.impl.internal.sizeof.DefaultSizeOfEngineProviderFactory',
+                                                                    'org.ehcache.impl.internal.statistics.DefaultStatisticsServiceFactory',
+                                                                    'org.ehcache.impl.internal.spi.resilience.DefaultResilienceStrategyProviderFactory'
+    }
+    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+}
+
+
+tasks.jlink.doLast {
+    // Spring performs its magic by scanning the classpath, but in a modular application the classpath is replaced by the module-path.
+    // To circumvent this problem, we copy all resources into the 'config' directory and set this directory as classpath.
+    copy {
+        from "$cloneDir/src/main/resources"
+        into "$imageDirPath/bin/config"
+    }
+    copy {
+        from 'resources/css'
+        into "$imageDirPath/bin/config/static/resources/css"
+    }
+    // Spring also needs to read the .class files, so they should be also accessible via classpath.
+    // Note: These .class files are only used as resources, they will not loaded by a classloader.
+    copy {
+        from "$buildDir/classes/java/main/org/springframework/samples/petclinic"
+        into "$imageDirPath/bin/config/org/springframework/samples/petclinic/for-spring-classpath-scanner"
+    }
+
+    // Adjust the start scripts
+    def scriptName = launcherName.get()
+    ["$scriptName", "${scriptName}.bat"].each { script ->
+        def scriptFile = new File("$imageDirPath/bin/$script")
+        if(scriptFile.file) {
+				    def windows = script.endsWith('.bat')
+            def quotes = windows ? '' : '"'
+						def replacement = "JLINK_VM_OPTIONS=${quotes}" +
+						        "--add-opens java.base/java.lang=spring.petclinic.merged.module " +
+										"--add-opens java.base/java.io=spring.petclinic.merged.module " +
+										"-cp config/ -Dspring.datasource.schema=file:config/db/hsqldb/schema.sql " +
+										"-Dspring.datasource.data=file:config/db/hsqldb/data.sql " +
+										"-Dspring.jpa.hibernate.ddl-auto=none " +
+										"-Dspring.messages.basename=messages/messages${quotes}"
+						replacement += windows ? '\npushd %~dp0' : '\nOLDPATH=`pwd`\ncd `dirname $0`'
+            def newText = scriptFile.text.replace('JLINK_VM_OPTIONS=', replacement)
+            if(!windows) newText = newText.replaceFirst('DIR=.*', 'DIR=.')
+						newText += windows ? 'popd\n' : 'cd $OLDPATH\n'
+            scriptFile.newWriter().withWriter {w -> w << newText}
+        }
+    }
+}
