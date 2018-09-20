@@ -1,6 +1,6 @@
 import org.ajoberstar.grgit.*
 plugins {
-    id "org.beryx.jlink" version "1.4.2"
+    id "org.beryx.jlink" version "1.4.3"
     id "org.springframework.boot" version "2.0.4.RELEASE"
     id "org.ajoberstar.grgit" version "3.0.0-beta.1"
 }
