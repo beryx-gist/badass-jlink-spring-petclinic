@@ -1,6 +1,7 @@
 import org.ajoberstar.grgit.*
 plugins {
-    id "org.beryx.jlink" version "1.4.3"
+    id "org.beryx.jlink" version "2.0.1"
+    id 'com.zyxist.chainsaw' version '0.3.1'
     id "org.springframework.boot" version "2.0.4.RELEASE"
     id "org.ajoberstar.grgit" version "3.0.0-beta.1"
 }
@@ -94,13 +95,7 @@ prepareMergedJarsDir.doLast {
     }
 }
 
-compileJava {
-    options.compilerArgs = ['--module-path', classpath.asPath]
-    classpath = files()
-}
-
 jlink {
-    launcherName = project.launcherName
     imageDir = file(imageDirPath)
     imageZip = file(imageZipPath)
     forceMerge 'jaxb-api'
@@ -115,7 +110,6 @@ jlink {
         requires 'jdk.unsupported'
 
         uses 'ch.qos.logback.classic.spi.Configurator'
-        uses 'org.apache.juli.logging.Log'
         uses 'org.hibernate.integrator.spi.Integrator'
         uses 'org.hibernate.boot.registry.selector.StrategyRegistrationProvider'
         uses 'org.hibernate.service.spi.ServiceContributor'
@@ -130,13 +124,9 @@ jlink {
         uses 'javax.validation.valueextraction.ValueExtractor'
         uses 'javax.validation.ConstraintValidator'
 
+
+        uses 'org.apache.juli.logging.Log'
         uses 'javax.cache.spi.CachingProvider'
-        uses 'com.fasterxml.jackson.core.JsonFactory'
-        uses 'com.fasterxml.jackson.core.ObjectCodec'
-        uses 'com.fasterxml.jackson.databind.Module'
-        uses 'java.sql.Driver'
-        uses 'javax.persistence.spi.PersistenceProvider'
-        uses 'javax.servlet.ServletContainerInitializer'
         uses 'javax.validation.spi.ValidationProvider'
         uses 'javax.websocket.ContainerProvider'
         uses 'javax.websocket.server.ServerEndpointConfig.Configurator'
@@ -150,16 +140,13 @@ jlink {
         provides 'com.fasterxml.jackson.databind.Module' with 'com.fasterxml.jackson.module.paramnames.ParameterNamesModule'
         provides 'java.sql.Driver' with 'org.hsqldb.jdbc.JDBCDriver'
         provides 'javax.cache.spi.CachingProvider' with 'org.ehcache.jsr107.EhcacheCachingProvider'
-
         provides 'javax.persistence.spi.PersistenceProvider' with 'org.hibernate.jpa.HibernatePersistenceProvider'
         provides 'javax.servlet.ServletContainerInitializer' with 'org.apache.tomcat.websocket.server.WsSci'
         provides 'javax.validation.spi.ValidationProvider' with 'org.hibernate.validator.HibernateValidator'
         provides 'javax.websocket.ContainerProvider' with 'org.apache.tomcat.websocket.WsContainerProvider'
         provides 'javax.websocket.server.ServerEndpointConfig.Configurator' with 'org.apache.tomcat.websocket.server.DefaultServerEndpointConfigurator'
-
         provides 'org.webjars.urlprotocols.UrlProtocolHandler' with 'org.webjars.urlprotocols.JarUrlProtocolHandler',
                                                                     'org.webjars.urlprotocols.FileUrlProtocolHandler'
-
         provides 'org.ehcache.xml.CacheManagerServiceConfigurationParser' with 'org.ehcache.jsr107.internal.Jsr107ServiceConfigurationParser'
         provides 'org.ehcache.xml.CacheServiceConfigurationParser' with 'org.ehcache.jsr107.internal.Jsr107CacheConfigurationParser'
         provides 'org.ehcache.core.spi.service.ServiceFactory' with 'org.ehcache.impl.internal.executor.DefaultExecutionServiceFactory',
@@ -182,6 +169,17 @@ jlink {
                                                                     'org.ehcache.impl.internal.spi.resilience.DefaultResilienceStrategyProviderFactory'
     }
     options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    launcher{
+        name = project.launcherName
+        jvmArgs = [
+            '--add-opens java.base/java.lang=spring.petclinic.merged.module',
+            '--add-opens java.base/java.io=spring.petclinic.merged.module',
+            '-cp config/ -Dspring.datasource.schema=file:config/db/hsqldb/schema.sql',
+            '-Dspring.datasource.data=file:config/db/hsqldb/data.sql',
+            '-Dspring.jpa.hibernate.ddl-auto=none',
+            '-Dspring.messages.basename=messages/messages'
+        ]
+    }
 }
 
 
@@ -201,27 +199,5 @@ tasks.jlink.doLast {
     copy {
         from "$buildDir/classes/java/main/org/springframework/samples/petclinic"
         into "$imageDirPath/bin/config/org/springframework/samples/petclinic/for-spring-classpath-scanner"
-    }
-
-    // Adjust the start scripts
-    def scriptName = launcherName.get()
-    ["$scriptName", "${scriptName}.bat"].each { script ->
-        def scriptFile = new File("$imageDirPath/bin/$script")
-        if(scriptFile.file) {
-				    def windows = script.endsWith('.bat')
-            def quotes = windows ? '' : '"'
-						def replacement = "JLINK_VM_OPTIONS=${quotes}" +
-						        "--add-opens java.base/java.lang=spring.petclinic.merged.module " +
-										"--add-opens java.base/java.io=spring.petclinic.merged.module " +
-										"-cp config/ -Dspring.datasource.schema=file:config/db/hsqldb/schema.sql " +
-										"-Dspring.datasource.data=file:config/db/hsqldb/data.sql " +
-										"-Dspring.jpa.hibernate.ddl-auto=none " +
-										"-Dspring.messages.basename=messages/messages${quotes}"
-						replacement += windows ? '\npushd %~dp0' : '\nOLDPATH=`pwd`\ncd `dirname $0`'
-            def newText = scriptFile.text.replace('JLINK_VM_OPTIONS=', replacement)
-            if(!windows) newText = newText.replaceFirst('DIR=.*', 'DIR=.')
-						newText += windows ? 'popd\n' : 'cd $OLDPATH\n'
-            scriptFile.newWriter().withWriter {w -> w << newText}
-        }
     }
 }
