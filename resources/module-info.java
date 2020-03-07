@@ -2,7 +2,6 @@ open module org.springframework.samples.petclinic {
     requires java.xml.bind;
     requires java.management;
     requires java.transaction;
-    requires java.activation;
     requires java.instrument;
     requires java.persistence;
     requires java.sql;
