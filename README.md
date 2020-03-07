@@ -22,9 +22,10 @@ Gradle must use Java 11 or newer in order to be able to build the project.
 To create the custom runtime image execute:
 
 ```
+./gradlew clonePetclinic
 ./gradlew jlinkZip
 ```
 
-This command creates the runtime image in the `build/spring-petclinic-image` directory and a zip file of it in `build/image-zip`.
+This command creates the runtime image in the `build/image` directory and a zip file of it in `build/image-zip`.
 
-The start scripts are found in the `build/spring-petclinic-image/bin` directory.
+The start scripts are found in the `build/image/bin` directory.
