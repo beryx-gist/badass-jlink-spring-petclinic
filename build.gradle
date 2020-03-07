@@ -93,6 +93,7 @@ prepareMergedJarsDir.doLast {
 }
 
 jlink {
+    imageZip = file("$buildDir/image-zip/spring-petclinic-image.zip")
     forceMerge 'jaxb-api', 'byte-buddy', 'classgraph'
     
     mergedModule {
