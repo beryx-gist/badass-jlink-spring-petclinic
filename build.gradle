@@ -81,12 +81,25 @@ compileJava.dependsOn 'clonePetclinic'
 tasks.jar.enabled = true
 
 prepareMergedJarsDir.doLast {
-    // extract and concatenate META-INF/spring.factories from springFactoriesHolder
-	def content = configurations.springFactoriesHolder.files.collect {
-		zipTree(it).matching { include 'META-INF/spring.factories' }.singleFile.text
-	}.join('\n')
-	mkdir("$jlinkBasePath/META-INF")
-	new File("$jlinkBasePath/META-INF/spring.factories").text = content
+    // extract and merge META-INF/spring.factories from springFactoriesHolder
+    def factories = configurations.springFactoriesHolder.files.collect {
+        def props = new Properties()
+        props.load(zipTree(it).matching { include 'META-INF/spring.factories' }.singleFile.newInputStream())
+        props
+    }
+    def mergedProps = new Properties()
+    factories.each { props ->
+        props.each { key, value ->
+            def oldVal = mergedProps[key]
+            mergedProps[key] = oldVal ? "$oldVal,$value" : value
+        }
+    }
+    def content = mergedProps.collect { key, value ->
+        def v = (value as String).replace(',', ',\\\n')
+        "$key=$v"
+    }.join('\n\n')
+    mkdir("$jlinkBasePath/META-INF")
+    new File("$jlinkBasePath/META-INF/spring.factories").text = content
 
     // insert META-INF/spring.factories into the main jar
     ant.zip(update: "true", destfile: jar.archivePath, keepcompression: true) {
