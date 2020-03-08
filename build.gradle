@@ -27,11 +27,14 @@ repositories {
 defaultTasks 'clean', 'jlinkZip'
 
 configurations {
-   springAutoConfig { transitive = false }
+   springFactoriesHolder { transitive = false }
 }
 
 dependencies {
-    springAutoConfig 'org.springframework.boot:spring-boot-autoconfigure'
+    springFactoriesHolder 'org.springframework.boot:spring-boot-actuator-autoconfigure'
+    springFactoriesHolder 'org.springframework.boot:spring-boot-autoconfigure'
+    springFactoriesHolder 'org.springframework.boot:spring-boot'
+
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
@@ -78,13 +81,12 @@ compileJava.dependsOn 'clonePetclinic'
 tasks.jar.enabled = true
 
 prepareMergedJarsDir.doLast {
-    // extract META-INF/spring.factories from spring-boot-autoconfigure
-    copy {
-        from zipTree(configurations.springAutoConfig.singleFile).matching {
-            include 'META-INF/spring.factories'
-        }
-        into jlinkBasePath
-    }
+    // extract and concatenate META-INF/spring.factories from springFactoriesHolder
+	def content = configurations.springFactoriesHolder.files.collect {
+		zipTree(it).matching { include 'META-INF/spring.factories' }.singleFile.text
+	}.join('\n')
+	mkdir("$jlinkBasePath/META-INF")
+	new File("$jlinkBasePath/META-INF/spring.factories").text = content
 
     // insert META-INF/spring.factories into the main jar
     ant.zip(update: "true", destfile: jar.archivePath, keepcompression: true) {
