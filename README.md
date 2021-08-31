@@ -1,6 +1,6 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/beryx-gist/badass-jlink-spring-petclinic/blob/master/LICENSE)
-[![Build Status](https://img.shields.io/travis/beryx-gist/badass-jlink-spring-petclinic/master.svg?label=Build)](https://travis-ci.org/beryx-gist/badass-jlink-spring-petclinic)
+[![Build Status](https://img.shields.io/github/workflow/status/beryx-gist/badass-jlink-spring-petclinic/Gradle%20Build)](https://github.com/beryx-gist/badass-jlink-spring-petclinic/actions?query=workflow%3A%22Gradle+Build%22)
 
 ## Custom runtime image of spring-petclinic using the badass-jlink plugin ##
 
@@ -13,7 +13,6 @@ However, this is not an easy task. If you don't really need to modularize your s
 
 ### Quick start
 From the [releases page](https://github.com/beryx-gist/badass-jlink-spring-petclinic/releases) download the archived custom runtime image for your operating system.
-Alternatively, for Linux, you can download [the most recent custom runtime image](https://github.com/beryx-gist/badass-jlink-spring-petclinic/tree/images).
 Unpack the archive and execute the `spring-petclinic` script found in the `image/bin` directory.  
 Then, access http://localhost:8080/ in your browser.
 
