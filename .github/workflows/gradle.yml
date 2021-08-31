@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
-        java: [ '16.0.2' ]
+        java: [ '11.0.12' ]
       fail-fast: false
     name: ${{ matrix.os }} JDK ${{ matrix.java }}
     steps:
@@ -25,9 +25,9 @@ jobs:
     - name: Execute clonePetclinic
       run: ./gradlew --info --stacktrace clonePetclinic
     - name: Execute jlinkZip
-      run: ./gradlew --info --stacktrace jlinkZip
+      run: ./gradlew --info --stacktrace jlink
     - name: Upload zipped image as an artifact
       uses: actions/upload-artifact@v2
       with:
         name: spring-petclinic-jdk${{ matrix.java }}-${{ matrix.os }}
-        path: build/image-zip/*.zip
+        path: build/image
