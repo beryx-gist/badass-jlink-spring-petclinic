@@ -1,0 +1,31 @@
+name: Gradle Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        java: [ '16.0.2' ]
+      fail-fast: false
+    name: ${{ matrix.os }} JDK ${{ matrix.java }}
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Set up JDK
+      uses: actions/setup-java@v1
+      with:
+        java-version: ${{ matrix.java }}
+    - name: Echo JAVA_HOME
+      run: echo $JAVA_HOME
+    - name: Verify Gradle Wrapper
+      uses: gradle/wrapper-validation-action@v1
+    - name: Execute jlinkZip
+      run: ./gradlew --info --stacktrace clean jlinkZip
+    - name: Upload zipped image as an artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: spring-petclinic-jdk${{ matrix.java }}-${{ matrix.os }}
+        path: build/image-zip/*.zip
