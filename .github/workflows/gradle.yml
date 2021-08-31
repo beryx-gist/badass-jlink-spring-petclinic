@@ -22,8 +22,10 @@ jobs:
       run: echo $JAVA_HOME
     - name: Verify Gradle Wrapper
       uses: gradle/wrapper-validation-action@v1
+    - name: Execute clonePetclinic
+      run: ./gradlew --info --stacktrace clonePetclinic
     - name: Execute jlinkZip
-      run: ./gradlew --info --stacktrace clean jlinkZip
+      run: ./gradlew --info --stacktrace jlinkZip
     - name: Upload zipped image as an artifact
       uses: actions/upload-artifact@v2
       with:

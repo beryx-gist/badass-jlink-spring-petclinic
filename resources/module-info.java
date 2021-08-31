@@ -5,11 +5,9 @@ open module org.springframework.samples.petclinic {
     requires java.instrument;
     requires java.persistence;
     requires java.sql;
-    // requires java.validation;
     requires jdk.unsupported;
 
     requires cache.api;
-    // requires org.hibernate.validator;
 
     requires spring.beans;
     requires spring.core;
